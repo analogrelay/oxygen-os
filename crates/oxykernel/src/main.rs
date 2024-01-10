@@ -9,6 +9,10 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn kstart() -> ! {
+    yoot();
     loop {}
+}
+
+fn yoot() {
 }

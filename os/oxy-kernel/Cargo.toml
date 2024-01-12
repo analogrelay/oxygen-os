@@ -1,3 +1,5 @@
+cargo-features = [ "profile-rustflags" ]
+
 [package]
 name = "oxy-kernel"
 version = "0.1.0"

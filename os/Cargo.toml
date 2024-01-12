@@ -1,5 +1,22 @@
+cargo-features = [ "profile-rustflags" ]
+
 [workspace]
 resolver = "2"
 members = [ 
     "oxy-kernel"
+]
+
+
+[profile.dev.package."oxy-kernel"]
+rustflags = [
+    "-C", "link-args=--image-base 0xFFFF800000000000",
+    "-C", "relocation-model=pic",
+    "-C", "code-model=large"
+]
+
+[profile.release.package."oxy-kernel"]
+rustflags = [
+    "-C", "link-args=--image-base 0xFFFF800000000000",
+    "-C", "relocation-model=pic",
+    "-C", "code-model=large"
 ]

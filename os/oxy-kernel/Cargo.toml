@@ -1,0 +1,12 @@
+[package]
+name = "oxy-kernel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bootloader_api = "0.11.5"
+conquer-once = { version = "0.4.0", default-features = false }
+log = "0.4.20"
+noto-sans-mono-bitmap = "0.2.0"
+spinning_top = "0.3.0"
+uart_16550 = "0.3.0"

@@ -20,6 +20,9 @@
         clang
         llvmPackages.bintools
         rustup
+        cargo-bootimage
+        rustfilt
+        libiconv
       ];
 
       packages = with pkgs; [ 

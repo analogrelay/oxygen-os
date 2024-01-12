@@ -1,12 +1,15 @@
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 ARCH ?= x86_64
+TARGET ?= $(ARCH)-unknown-oxygen
 CONFIGURATION ?= debug
+
+OUT_DIR := $(ROOT_DIR)/os/target/$(TARGET)/$(CONFIGURATION)
 
 CARGO ?= cargo
 OBJCOPY ?= objcopy
 NM ?= nm
-CPPFILT ?= c++filt
+RUSTFILT ?= rustfilt
 
 CARGO_ARGS :=
 ifeq ($(CONFIGURATION), release)
@@ -16,49 +19,35 @@ endif
 .PHONY: all
 all: image
 
-target/$(ARCH)-unknown-uefi/OVMF_VARS.fd: 
-	cp $(OVMF_PATH)/OVMF_VARS.fd target/$(ARCH)-unknown-uefi/OVMF_VARS.fd
-	chmod 644 target/$(ARCH)-unknown-uefi/OVMF_VARS.fd
+# Copy the OVMF_VARS file, because it could be in read-only storage if it's coming from Nix.
+os/target/$(ARCH)_OVMF_VARS.fd:
+	mkdir -p $(ROOT_DIR)/os/target
+	cp $(OVMF_PATH)/OVMF_VARS.fd os/target/$(ARCH)_OVMF_VARS.fd
+	chmod 644 os/target/$(ARCH)_OVMF_VARS.fd
 
 .PHONY: qemu
-qemu: image target/$(ARCH)-unknown-uefi/OVMF_VARS.fd
+qemu: image os/target/$(ARCH)_OVMF_VARS.fd
 	$(QEMU) \
 		-drive "if=pflash,format=raw,file=$(OVMF_PATH)/OVMF_CODE.fd,readonly=on" \
-		-drive "if=pflash,format=raw,file=$(ROOT_DIR)/target/$(ARCH)-unknown-uefi/OVMF_VARS.fd" \
-		-drive "format=raw,file=fat:rw:$(ROOT_DIR)/target/image" \
+		-drive "if=pflash,format=raw,file=$(ROOT_DIR)/os/target/$(ARCH)_OVMF_VARS.fd" \
+		-drive "format=raw,file=$(OUT_DIR)/oxygen.img" \
 		-net none \
 		-serial stdio
 
 .PHONY: image
-image: oxyboot oxykernel
-	@test -d "$(ROOT_DIR)/target/image/efi/boot" || mkdir -p $(ROOT_DIR)/target/image/efi/boot
-	cp $(ROOT_DIR)/target/$(ARCH)-unknown-uefi/$(CONFIGURATION)/oxyboot.efi $(ROOT_DIR)/target/image/efi/boot/bootx64.efi
-	cp $(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel $(ROOT_DIR)/target/image/efi/boot/oxykernel
-
-.PHONY: oxyboot
-oxyboot:
-	$(CARGO) build \
-		$(CARGO_ARGS) \
-		--target $(ARCH)-unknown-uefi \
-		--package oxyboot
-
-.PHONY: oxykernel
-oxykernel:
-	$(CARGO) rustc \
-		$(CARGO_ARGS) \
+image: oxy-kernel
+	$(CARGO) run $(CARGO_ARGS) \
+		--manifest-path $(ROOT_DIR)/tools/build-image/Cargo.toml \
+		-- \
+		$(OUT_DIR)/oxy-kernel \
+		$(OUT_DIR)/oxygen.img
+		
+.PHONY: oxy-kernel
+oxy-kernel:
+	$(CARGO) build $(CARGO_ARGS) \
+		--manifest-path $(ROOT_DIR)/os/Cargo.toml \
 		-Z build-std=core,alloc \
 		-Z build-std-features=compiler-builtins-mem \
-		--target "$(ROOT_DIR)/crates/oxykernel/targets/$(ARCH)-oxygen-kernel.json" \
-		--package oxykernel \
-		-- \
-		-C link-arg=-T -C link-arg="$(ROOT_DIR)/crates/oxykernel/linkers/$(ARCH).ld" \
-		--emit link=$(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel.all
-	$(OBJCOPY) \
-		--only-keep-debug \
-		$(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel.all \
-		$(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel.sym
-	$(OBJCOPY) \
-		--strip-debug \
-		$(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel.all \
-		$(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel
-	$(NM) $(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel | $(CPPFILT) > $(ROOT_DIR)/target/$(ARCH)-oxygen-kernel/$(CONFIGURATION)/oxykernel.names
+		--target $(ROOT_DIR)/os/$(TARGET).json \
+		--package oxy-kernel
+	$(NM) $(OUT_DIR)/oxy-kernel | $(RUSTFILT) > $(OUT_DIR)/oxy-kernel.names

@@ -18,37 +18,15 @@ impl LockedLogger {
     pub fn new(
         framebuffer: &'static mut [u8],
         info: FrameBufferInfo,
-        frame_buffer_logger_status: bool,
-        serial_logger_status: bool,
     ) -> Self {
-        let framebuffer = match frame_buffer_logger_status {
-            true => Some(Spinlock::new(FrameBufferWriter::new(framebuffer, info))),
-            false => None,
-        };
-
-        let serial = match serial_logger_status {
-            true => Some(Spinlock::new(unsafe { SerialPort::init() })),
-            false => None,
-        };
+        let framebuffer = Spinlock::new(FrameBufferWriter::new(framebuffer, info));
+        let serial = Spinlock::new(unsafe { SerialPort::init() });
 
         LockedLogger {
-            framebuffer,
-            serial,
+            framebuffer: Some(framebuffer),
+            serial: Some(serial),
         }
     }
-
-    // /// Force-unlocks the logger to prevent a deadlock.
-    // ///
-    // /// ## Safety
-    // /// This method is not memory safe and should be only used when absolutely necessary.
-    // pub unsafe fn force_unlock(&self) {
-    //     if let Some(framebuffer) = &self.framebuffer {
-    //         unsafe { framebuffer.force_unlock() };
-    //     }
-    //     if let Some(serial) = &self.serial {
-    //         unsafe { serial.force_unlock() };
-    //     }
-    // }
 }
 
 impl log::Log for LockedLogger {

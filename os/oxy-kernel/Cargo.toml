@@ -1,14 +1,21 @@
-cargo-features = [ "profile-rustflags" ]
-
 [package]
 name = "oxy-kernel"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bootloader_api = "0.11.5"
 conquer-once = { version = "0.4.0", default-features = false }
-log = "0.4.20"
-noto-sans-mono-bitmap = "0.2.0"
+lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
+linked_list_allocator = "0.10.5"
+log.workspace = true
 spinning_top = "0.3.0"
+thiserror.workspace = true
+noto-sans-mono-bitmap = "0.3.0"
+bitflags = "2.6.0"
+
+[target.x86_64-unknown-none.dependencies]
 uart_16550 = "0.3.0"
+bootloader_api = "0.11.5"
+x86_64 = "0.15.1"
+x2apic = "0.4.3"
+acpi = "5.0.0"
